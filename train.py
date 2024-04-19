@@ -89,7 +89,7 @@ def main(args):
 
 
     g = data.graph
-    print("data:::", data)
+    # print("data:::", data)
 
     
 
@@ -107,14 +107,16 @@ def main(args):
     nx_g = dgl.to_networkx(g)
 
     plt.figure(figsize=(10, 10))
-    nx.draw_networkx(nx_g, node_size=5, arrowstyle='-', arrows=False, node_color=[[.7, .7, .7]], with_labels=False)
+    pos_kk = nx.kamada_kawai_layout(nx_g)
+    # pos_kk = nx.circular_layout(nx_g)
+    nx.draw_networkx(nx_g, pos = pos_kk, node_size=5, arrowstyle='-', arrows=False, node_color=[[.7, .7, .7]], with_labels=False)
     plt.title('Cora Citation Graph')
     plt.show()
 
-    print('edges: ', g.edges()) # 2 lists, each entry in each list corresponds to the source and destination nodes of an edge
-    print("nodes: ", g.number_of_nodes())
-    print('edges 1: ', g.edges()[0].shape) # list corresponding to the source nodes of the edges
-    print('edges 2: ', g.edges()[1].shape) # list corresponding to the destination nodes of the edges
+    # print('edges: ', g.edges()) # 2 lists, each entry in each list corresponds to the source and destination nodes of an edge
+    # print("nodes: ", g.number_of_nodes())
+    # print('edges 1: ', g.edges()[0].shape) # list corresponding to the source nodes of the edges
+    # print('edges 2: ', g.edges()[1].shape) # list corresponding to the destination nodes of the edges
 
     # TODO: visualize the graph with g.nodes() and g.edges()
     # nx_g = g.to_networkx().to_undirected()
@@ -125,11 +127,11 @@ def main(args):
 
 
 
-    print('nodes: ', g.nodes())
-    print('nodes data: ', g.ndata)
-    print('edge data: ', g.edata)
+    # print('nodes: ', g.nodes())
+    # print('nodes data: ', g.ndata)
+    # print('edge data: ', g.edata)
 
-    print('edge number %d'%(n_edges))
+    # print('edge number %d'%(n_edges))
 
 
     
@@ -190,11 +192,11 @@ def main(args):
                 if stopper.step(val_acc, model):   
                     break
 
-        # print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | TrainAcc {:.4f} |"
-        #       " ValAcc {:.4f} | ETputs(KTEPS) {:.2f}".format(epoch, np.mean(dur), loss.item(), train_acc,
-        #              val_acc, n_edges / np.mean(dur) / 1000))
-        print('edge number %d'%(g.number_of_edges()))
-        print('edge data: ', g.edata)
+        print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | TrainAcc {:.4f} |"
+              " ValAcc {:.4f} | ETputs(KTEPS) {:.2f}".format(epoch, np.mean(dur), loss.item(), train_acc,
+                     val_acc, n_edges / np.mean(dur) / 1000))
+        # print('edge number %d'%(g.number_of_edges()))
+        # print('edge data: ', g.edata)
 
 
         writer.add_scalar('loss', loss.item(), epoch)
