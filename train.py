@@ -14,6 +14,9 @@ from torch.backends import cudnn
 import networkx as nx
 import numpy as np
 from utils import EarlyStopping
+import dgl
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 def accuracy(logits, labels):
@@ -59,17 +62,19 @@ def main(args):
     current_time = time.strftime('%d_%H:%M:%S', localtime())
     writer = SummaryWriter(log_dir='runs/' + current_time + '_' + args.sess, flush_secs=30)
 
-    print("""----Data statistics------'
-      #Edges %d
-      #Classes %d
-      #Train samples %d
-      #Val samples %d
-      #Test samples %d""" %
-          (n_edges, n_classes,
-           train_mask.sum().item(),
-           val_mask.sum().item(),
-           test_mask.sum().item()))
+    # print("""----Data statistics------'
+    #   #Edges %d
+    #   #Classes %d
+    #   #Train samples %d
+    #   #Val samples %d
+    #   #Test samples %d""" %
+    #       (n_edges, n_classes,
+    #        train_mask.sum().item(),
+    #        val_mask.sum().item(),
+    #        test_mask.sum().item()))
 
+
+    # Setting GPU stuff
     if args.gpu < 0:
         cuda = False
     else:
@@ -82,14 +87,52 @@ def main(args):
         test_mask = test_mask.bool().cuda()
 
 
+
     g = data.graph
+    print("data:::", data)
+
+    
+
+
     # add self loop
     if args.dataset != 'reddit':
         g.remove_edges_from(nx.selfloop_edges(g))
         g = DGLGraph(g)
     g.add_edges(g.nodes(), g.nodes())
     n_edges = g.number_of_edges()
+
+    nx_g = g.to_networkx().to_undirected()
+
+    # Convert the DGL Graph to a NetworkX graph (ensuring compatibility)
+    nx_g = dgl.to_networkx(g)
+
+    plt.figure(figsize=(10, 10))
+    nx.draw_networkx(nx_g, node_size=5, arrowstyle='-', arrows=False, node_color=[[.7, .7, .7]], with_labels=False)
+    plt.title('Cora Citation Graph')
+    plt.show()
+
+    print('edges: ', g.edges()) # 2 lists, each entry in each list corresponds to the source and destination nodes of an edge
+    print("nodes: ", g.number_of_nodes())
+    print('edges 1: ', g.edges()[0].shape) # list corresponding to the source nodes of the edges
+    print('edges 2: ', g.edges()[1].shape) # list corresponding to the destination nodes of the edges
+
+    # TODO: visualize the graph with g.nodes() and g.edges()
+    # nx_g = g.to_networkx().to_undirected()
+    # # Convert the DGL Graph to a NetworkX graph (ensuring compatibility)
+    # nx_g = dgl.to_networkx(g, node_attrs=['feat'], edge_attrs=['weight'])
+
+    # plt.figure(figsize=(10, 10))
+
+
+
+    print('nodes: ', g.nodes())
+    print('nodes data: ', g.ndata)
+    print('edge data: ', g.edata)
+
     print('edge number %d'%(n_edges))
+
+
+    
     # create model
     heads = ([args.num_heads] * args.num_layers) + [args.num_out_heads]
 
@@ -105,7 +148,7 @@ def main(args):
                 args.alpha,
                 args.bias,
                 args.residual, args.l0)
-    print(model)
+    print("Model: ", model)
     if args.early_stop:
         stopper = EarlyStopping(patience=150)
     if cuda:
@@ -117,6 +160,7 @@ def main(args):
 
     dur = []
     time_used = 0
+
 
     for epoch in range(args.epochs):
         model.train()
@@ -146,9 +190,13 @@ def main(args):
                 if stopper.step(val_acc, model):   
                     break
 
-        print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | TrainAcc {:.4f} |"
-              " ValAcc {:.4f} | ETputs(KTEPS) {:.2f}".format(epoch, np.mean(dur), loss.item(), train_acc,
-                     val_acc, n_edges / np.mean(dur) / 1000))
+        # print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | TrainAcc {:.4f} |"
+        #       " ValAcc {:.4f} | ETputs(KTEPS) {:.2f}".format(epoch, np.mean(dur), loss.item(), train_acc,
+        #              val_acc, n_edges / np.mean(dur) / 1000))
+        print('edge number %d'%(g.number_of_edges()))
+        print('edge data: ', g.edata)
+
+
         writer.add_scalar('loss', loss.item(), epoch)
         writer.add_scalar('f1/train_f1_mic', train_acc, epoch)
         writer.add_scalar('f1/test_f1_mic', val_acc, epoch)
@@ -158,6 +206,7 @@ def main(args):
     if args.early_stop:
         model.load_state_dict(torch.load('es_checkpoint.pt'))
     acc, _ = evaluate(model,features, labels, test_mask, loss_fcn)
+
     print("Test Accuracy {:.4f}".format(acc))
 
 
@@ -203,6 +252,6 @@ if __name__ == '__main__':
     parser.add_argument('--sess', default='default', type=str, help='session id')
     parser.set_defaults(self_loop=False)
     args = parser.parse_args()
-    print(args)
+    # print(args)
     set_seeds(args.seed)
     main(args)

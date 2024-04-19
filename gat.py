@@ -100,6 +100,7 @@ class GraphAttention(nn.Module):
             # 2. compute softmax
             if self.l0 == 1:
                 ind = self.g.nodes()
+                # print("self.g.nodes(): ",ind)
                 self.g.apply_edges(self.loop, edges=(ind, ind))
 
             self.edge_softmax()
@@ -112,7 +113,10 @@ class GraphAttention(nn.Module):
 
 
         self.g.edata['a_drop'] = self.attn_drop(self.g.edata['a'])
+        # print("self.g.edata['a_drop']: ",self.g.edata['a'])
         self.num = (self.g.edata['a'] > 0).sum()
+        print("edges, forward: ",edges)
+        # print("self.num: ",self.num)
         self.g.update_all(fn.src_mul_edge('ft', 'a_drop', 'ft'), fn.sum('ft', 'ft'))
         ret = self.g.ndata['ft']
 
