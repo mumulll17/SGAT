@@ -115,7 +115,7 @@ class GraphAttention(nn.Module):
         self.g.edata['a_drop'] = self.attn_drop(self.g.edata['a'])
         # print("self.g.edata['a_drop']: ",self.g.edata['a'])
         self.num = (self.g.edata['a'] > 0).sum()
-        print("edges, forward: ",edges)
+        #print("edges, forward: ",edges)
         # print("self.num: ",self.num)
         self.g.update_all(fn.src_mul_edge('ft', 'a_drop', 'ft'), fn.sum('ft', 'ft'))
         ret = self.g.ndata['ft']

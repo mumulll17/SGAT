@@ -44,13 +44,13 @@ def set_seeds(seed):
 
 def main(args):
     # load and preprocess dataset
-    if args.dataset == 'reddit':
-        data = RedditDataset()
-    elif args.dataset in ['photo', "computer"]:
-        data = MsDataset(args)
-    else:
-        data = load_data(args)
-
+    # if args.dataset == 'reddit':
+    #     data = RedditDataset()
+    # elif args.dataset in ['photo', "computer"]:
+    #     data = MsDataset(args)
+    # else:
+    #     data = load_data(args)
+    data = dgl.data.dgl_dataset.DGLDataset
     features = torch.FloatTensor(data.features)
     labels = torch.LongTensor(data.labels)
     train_mask = torch.ByteTensor(data.train_mask)
@@ -60,6 +60,7 @@ def main(args):
     n_classes = data.num_labels
     n_edges = data.graph.number_of_edges()
     current_time = time.strftime('%d_%H:%M:%S', localtime())
+    current_time = current_time.replace(":","-")
     writer = SummaryWriter(log_dir='runs/' + current_time + '_' + args.sess, flush_secs=30)
 
     # print("""----Data statistics------'
@@ -87,7 +88,6 @@ def main(args):
         test_mask = test_mask.bool().cuda()
 
 
-
     g = data.graph
     # print("data:::", data)
 
@@ -100,18 +100,17 @@ def main(args):
         g = DGLGraph(g)
     g.add_edges(g.nodes(), g.nodes())
     n_edges = g.number_of_edges()
+    # nx_g = g.to_networkx().to_undirected()
 
-    nx_g = g.to_networkx().to_undirected()
+    # # Convert the DGL Graph to a NetworkX graph (ensuring compatibility)
+    # nx_g = dgl.to_networkx(g)
 
-    # Convert the DGL Graph to a NetworkX graph (ensuring compatibility)
-    nx_g = dgl.to_networkx(g)
-
-    plt.figure(figsize=(10, 10))
-    pos_kk = nx.kamada_kawai_layout(nx_g)
-    # pos_kk = nx.circular_layout(nx_g)
-    nx.draw_networkx(nx_g, pos = pos_kk, node_size=5, arrowstyle='-', arrows=False, node_color=[[.7, .7, .7]], with_labels=False)
-    plt.title('Cora Citation Graph')
-    plt.show()
+    # plt.figure(figsize=(10, 10))
+    # pos_kk = nx.kamada_kawai_layout(nx_g)
+    # # pos_kk = nx.circular_layout(nx_g)
+    # nx.draw_networkx(nx_g, pos = pos_kk, node_size=5, arrowstyle='-', arrows=False, node_color=[[.7, .7, .7]], with_labels=False)
+    # plt.title('Cora Citation Graph')
+    # plt.show()
 
     # print('edges: ', g.edges()) # 2 lists, each entry in each list corresponds to the source and destination nodes of an edge
     # print("nodes: ", g.number_of_nodes())
@@ -164,6 +163,7 @@ def main(args):
     time_used = 0
 
 
+    print(n_edges)
     for epoch in range(args.epochs):
         model.train()
         if epoch >= 3:
@@ -198,19 +198,34 @@ def main(args):
         # print('edge number %d'%(g.number_of_edges()))
         # print('edge data: ', g.edata)
 
-
         writer.add_scalar('loss', loss.item(), epoch)
         writer.add_scalar('f1/train_f1_mic', train_acc, epoch)
         writer.add_scalar('f1/test_f1_mic', val_acc, epoch)
         writer.add_scalar('time/time', time_used, epoch)
-
     writer.close()
     if args.early_stop:
         model.load_state_dict(torch.load('es_checkpoint.pt'))
     acc, _ = evaluate(model,features, labels, test_mask, loss_fcn)
 
     print("Test Accuracy {:.4f}".format(acc))
+    # num = (g.edata['a'] > 0).sum()
+    # print("number of edges left",num)
+    mask = g.edata['a'] > 0.01
+    mask = mask.squeeze()
+    edge_ids = torch.nonzero(mask).squeeze()
+    print(edge_ids.shape)
+    sub_g = g.edge_subgraph(edge_ids)
+    print("Edge number after sparse:",sub_g.number_of_edges())
+    # Convert the DGL Graph to a NetworkX graph (ensuring compatibility)
+    sub_g = dgl.remove_self_loop(sub_g)
+    nx_g = dgl.to_networkx(sub_g)
 
+    plt.figure(figsize=(10, 10))
+    pos_kk = nx.kamada_kawai_layout(nx_g)
+    # pos_kk = nx.circular_layout(nx_g)
+    nx.draw_networkx(nx_g, pos = pos_kk, node_size=5, arrowstyle='-', arrows=False, node_color=[[.7, .7, .7]], with_labels=False)
+    plt.title('Cora Citation Graph After Sparsification')
+    plt.show()
 
 if __name__ == '__main__':
 
